@@ -26,7 +26,7 @@ export class Alert extends React.Component<AlertProps, {}> {
         if (!this.props.visible) return <div />;
 
         const { title, text, icon, options } = this.props;
-        return <div className="alert-container" onClick={this.props.onClose}>
+        return <div className="alert-container">
             <div className="alert" onClick={this.onAlertClick}>
                 <div className="alert-title">
                     {icon && <i className={`alert-icon icon ${icon}`}></i>}
