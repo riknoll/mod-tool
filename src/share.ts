@@ -1,3 +1,4 @@
+import { ignoredValues } from "./ignoredfields";
 import { getJRESImageFromDataString, getJRESImageFromImageLiteral, JRESImage } from "./images";
 import { IMAGE_MIME_TYPE } from "./util";
 
@@ -134,24 +135,49 @@ export async function fetchMakeCodeScriptAsync(url: string) {
     };
 }
 
-const ignoredValues = [`"- - - - - - - - "`, `Projectile`, `Food`, `Enemy`, `mySprite`, `Player`, `mySprite2`, `Sprite.x@set`, `effects.spray`, `false`, `animation.flyToCenter`, `ADD`, `min`, `max`, `round`, `ceil`, `floor`, `trunc`, `Sprite.x`, `Sprite.y`, `Sprite.vx`, `MINUS`, `MULTIPLY`, `DIVIDE`, `POWER`, `sqrt`, `sin`, `cos`, `tan`, `atan2`, `idiv`, `imul`, `TRUE`, `AND`, `OR`, `FALSE`, `TileDirection.Left`, `TileDirection.Bottom`, `TileDirection.Right`, `TileDirection.Top`, `TileDirection.Center`, `animation.AnimationTypes.All`, `animation.AnimationTypes.ImageAnimation`, `animation.AnimationTypes.MovementAnimation`, `list`, `Sprite.vy`, `Sprite.ax`, `Sprite.ay`, `Sprite.fx`, `Sprite.fy`, `Sprite.lifespan`, `Sprite.width`, `Sprite.height`, `Sprite.left`, `Sprite.right`, `Sprite.top`, `Sprite.bottom`, `Sprite.z`, `SpriteFlag.AutoDestroy`, `SpriteFlag.Ghost`, `SpriteFlag.StayInScreen`, `SpriteFlag.DestroyOnWall`, `SpriteFlag.BounceOnWall`, `SpriteFlag.ShowPhysics`, `SpriteFlag.Invisible`, `SpriteFlag.RelativeToCamera`, `SpriteFlag.GhostThroughSprites`, `SpriteFlag.GhostThroughTiles`, `SpriteFlag.GhostThroughWalls`, `controller.right`, `ControllerButtonEvent.Released`, `controller.A`, `ControllerButtonEvent.Pressed`, `controller.down`, `ControllerButtonEvent.Repeated`, `controller.B`, `controller.menu`, `controller.left`, `controller.anyButton`, `controller.up`, `sprite`, `sprites.castle.tileGrass2`, `location`, `controller.player2`, `ControllerEvent.Disconnected`, `info.player2`, `controller.player3`, `ControllerEvent.Connected`, `info.player3`, `info.player4`, `controller.player4`, `music.wawawawaa`, `music.baDing`, `music.jumpUp`, `music.jumpDown`, `music.sonar`, `music.spooky`, `music.beamUp`, `music.smallCrash`, `music.bigCrash`, `music.zapped`, `music.buzzer`, `music.powerUp`, `music.powerDown`, `music.magicWand`, `music.siren`, `music.pewPew`, `music.knock`, `music.footstep`, `music.thump`, `controller.player1`, `info.player1`, "EQ", "GT", "LT", "GTE", "LTE", "NEQ", "true", "false"]
 
-export function grabTextFromProject(filesystem: {[index: string]: string}) {
+export interface BlockFields {
+    variableNames: string[];
+    assetNames: string[];
+    other: string[];
+}
+
+export function grabTextFromProject(filesystem: {[index: string]: string}): BlockFields {
     const blocks = filesystem["main.blocks"];
     let strings: string[] = [];
+    let variableNames: string[] = [];
+    let assetNames: string[] = [];
 
-    const literalRegex = /\s*img\s*`[\s\da-f.#tngrpoyw]*`\s*/img;
-    const numbersymbol = /^[+.\d-]*$/
+    const literalRegex = /\s*img\s*`[\s\da-fA-F.#tngrpoywTNGRPOYW]*`\s*/m;
+    const numbersymbol = /^[+.\s\d-]*$/
 
-    ignoredValues.forEach(i => ignoredValues.push(i + "@set"));
+    ignoredValues.forEach(i => {
+        if (i.startsWith("Sprite.")) {
+            ignoredValues.push(i + "@set")
+        }
+    });
 
     if (blocks) {
         const xml = new DOMParser().parseFromString(blocks, "text/xml");
         const fields = xml.getElementsByTagName("field");
         for (let i = 0; i < fields.length; i++) {
-            const content = fields.item(i)!.textContent;
-            if (content && !/^[0-9\s]*$/.test(content) && !literalRegex.test(content) && !numbersymbol.test(content) && ignoredValues.indexOf(content) === -1) {
-                strings.push(content.trim());
+            console.log(fields.item(i)!.getAttribute("name"));
+            const content = fields.item(i)!.textContent?.trim();
+            if (!content || numbersymbol.test(content) || literalRegex.test(content) || ignoredValues.indexOf(content) !== -1) continue;
+
+            const fieldName = fields.item(i)!.getAttribute("name")
+            if (fieldName === "VAR") {
+                variableNames.push(content);
+            }
+            else {
+                const match = /^(?:assets\s*.)?\s*(?:(?:tilemap)|(?:image)|(?:tile)|(?:animation))\s*`([^`]+)`\s*$/.exec(content);
+                if (match) {
+                    if (/(?:myImage|tile|level|myAnim)\d+/.test(match[1])) continue;
+                    assetNames.push(match[1]);
+                }
+                else {
+                    strings.push(content);
+                }
             }
         }
 
@@ -164,6 +190,14 @@ export function grabTextFromProject(filesystem: {[index: string]: string}) {
         }
     }
 
+    return {
+        other: dedupe(strings),
+        assetNames: dedupe(assetNames),
+        variableNames: dedupe(variableNames)
+    }
+}
+
+function dedupe(strings: string[]) {
     const out: string[] = []
     strings.forEach(s => {
         if (out.indexOf(s) === -1) {

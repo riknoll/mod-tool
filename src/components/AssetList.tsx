@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, AlertProps } from './Alert';
 import { Asset, AssetInfo } from './Asset';
 import { JRESImage, getJRESImageFromDataString, getJRESImageFromUint8Array } from '../images'
-import { arcadePalette, fetchMakeCodeScriptAsync, grabImagesFromProject } from '../share';
+import { arcadePalette, BlockFields, fetchMakeCodeScriptAsync, grabImagesFromProject } from '../share';
 import { setupDragAndDrop, fileReadAsBufferAsync } from '../dragAndDrop';
 import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
@@ -27,7 +27,7 @@ interface AssetListState {
     saving?: number;
     dragging?: boolean;
     alert?: AlertInfo;
-    textItems?: string[];
+    textItems?: BlockFields;
     files?: FileInfo[];
 }
 
@@ -407,6 +407,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     render() {
         const { items, selected, dragging, alert, textItems, files } = this.state;
 
+        const { variableNames, assetNames, other } = textItems || {};
+
         return <div id="asset-list">
             {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
                 {alert.type === "import" && <div className="asset-import">
@@ -432,16 +434,25 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onDelete={this.onAssetDelete} />
                 }) }
             </div>
-            {textItems && <div className="asset-fields">
-                    {textItems.map((text, i) => <pre key={i} className="asset-field">{text}</pre>)}
-                </div>
+            {variableNames?.length && <div className="asset-files">
+                <div className="asset-filename">Variables</div>
+                <pre className="asset-file-content">{variableNames.join("\n")}</pre>
+            </div>}
+            {assetNames?.length &&  <div className="asset-files">
+                <div className="asset-filename">Asset Names</div>
+                <pre className="asset-file-content">{assetNames.join("\n")}</pre>
+            </div>}
+            { other?.length && <div className="asset-files">
+                <div className="asset-filename">Strings</div>
+                <pre className="asset-file-content">{other.join("\n")}</pre>
+            </div>
             }
-            {files && <div className="asset-files">
+            {files?.length && <div className="asset-files">
                     {files.map((file, i) => <div key={i} className="asset-file">
                         <div className="asset-filename">{file.name}</div>
-                        <pre className="asset-file-content">{file.content}</pre>
+                        <pre className="asset-file-content scroll">{file.content}</pre>
                 </div>)}
-                </div>
+            </div>
             }
         </div>
     }
