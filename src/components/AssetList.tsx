@@ -296,6 +296,12 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         })
     }
 
+    onPaste = (ev: React.ClipboardEvent<HTMLInputElement>) => {
+        this.clearAssets();
+        this.importAssets(ev.clipboardData.getData("text"));
+        this.hideAlert();
+    }
+
     onImportButtonClick = () => {
         this.setState({
             alert: {
@@ -415,13 +421,13 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
         const { variableNames, assetNames, other } = textItems || {};
 
-        return <div id="asset-list">
+        return <div id="asset-list" onPaste={this.onPaste}>
             {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
                 {alert.type === "import" && <div className="asset-import">
                     <div className={`asset-drop ${dragging ? "dragging" : ""}`} ref={this.handleDropRef} onDragEnter={this.onImportDragEnter} onDragLeave={this.onImportDragLeave}>
                         Drop PNG files here to import.
                     </div>
-                    <input ref={this.handleImportInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
+                    <input ref={this.handleImportInputRef} onPaste={this.onPaste} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
                 </div>}
                 {alert.type === "export" && <div className="asset-export">
                     <input ref={this.handleExportInputRef} placeholder="Enter a name for your project..." />
