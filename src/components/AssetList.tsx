@@ -23,6 +23,7 @@ interface AssetListProps {
 
 interface AssetListState {
     items: AssetInfo[];
+    runUrl?: string;
     selected: number;
     saving?: number;
     dragging?: boolean;
@@ -175,6 +176,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     importAssets(url: string, replace?: boolean) {
         fetchMakeCodeScriptAsync(url).then(res => {
+            const scriptId = res?.meta?.id;
+            const scriptTarget = res?.meta?.target;
+            const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
+
             if (replace) this._items = [];
             res.projectImages.forEach((el: JRESImage) => {
                 this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
@@ -205,7 +210,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             this.setState({
                 items: this._items,
                 textItems: res.text,
-                files
+                files,
+                runUrl
             })
         })
     }
@@ -405,7 +411,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     render() {
-        const { items, selected, dragging, alert, textItems, files } = this.state;
+        const { items, selected, dragging, alert, textItems, files, runUrl } = this.state;
 
         const { variableNames, assetNames, other } = textItems || {};
 
@@ -452,6 +458,9 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         <div className="asset-filename">{file.name}</div>
                         <pre className="asset-file-content scroll">{file.content}</pre>
                 </div>)}
+            {runUrl && <div className="sim-embed">
+                <iframe src={runUrl} sandbox="allow-popups allow-forms allow-scripts allow-same-origin"></iframe>
+            </div>}
             </div>
             }
         </div>

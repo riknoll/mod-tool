@@ -76,6 +76,17 @@
     padding: 0.5rem;
 }
 
+.sim-embed {
+    height: 30rem;
+    width: 40rem;
+    margin: 0 auto;
+}
+
+.sim-embed iframe {
+    height: 100%;
+    width: 100%;
+}
+
 
 /* BROWSER STUFF */
 
