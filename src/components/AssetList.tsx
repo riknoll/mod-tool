@@ -440,20 +440,20 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onDelete={this.onAssetDelete} />
                 }) }
             </div>
-            {variableNames?.length && <div className="asset-files">
+            {!!variableNames?.length && <div className="asset-files">
                 <div className="asset-filename">Variables</div>
                 <pre className="asset-file-content">{variableNames.join("\n")}</pre>
             </div>}
-            {assetNames?.length &&  <div className="asset-files">
+            {!!assetNames?.length &&  <div className="asset-files">
                 <div className="asset-filename">Asset Names</div>
                 <pre className="asset-file-content">{assetNames.join("\n")}</pre>
             </div>}
-            { other?.length && <div className="asset-files">
+            { !!other?.length && <div className="asset-files">
                 <div className="asset-filename">Strings</div>
                 <pre className="asset-file-content">{other.join("\n")}</pre>
             </div>
             }
-            {files?.length && <div className="asset-files">
+            {!!files?.length && <div className="asset-files">
                     {files.map((file, i) => <div key={i} className="asset-file">
                         <div className="asset-filename">{file.name}</div>
                         <pre className="asset-file-content scroll">{file.content}</pre>
