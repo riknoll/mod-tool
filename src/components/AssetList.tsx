@@ -458,11 +458,11 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         <div className="asset-filename">{file.name}</div>
                         <pre className="asset-file-content scroll">{file.content}</pre>
                 </div>)}
-            {runUrl && <div className="sim-embed">
-                <iframe src={runUrl} sandbox="allow-popups allow-forms allow-scripts allow-same-origin"></iframe>
-            </div>}
             </div>
             }
+            {runUrl && <div className="sim-embed asset-files">
+                <iframe src={runUrl} sandbox="allow-popups allow-forms allow-scripts allow-same-origin"></iframe>
+            </div>}
         </div>
     }
 }
