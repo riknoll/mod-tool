@@ -23,6 +23,7 @@ interface AssetListProps {
 
 interface AssetListState {
     items: AssetInfo[];
+    runUrl?: string;
     selected: number;
     saving?: number;
     dragging?: boolean;
@@ -175,6 +176,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     importAssets(url: string, replace?: boolean) {
         fetchMakeCodeScriptAsync(url).then(res => {
+            const scriptId = res?.meta?.id;
+            const scriptTarget = res?.meta?.target;
+            const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
+
             if (replace) this._items = [];
             res.projectImages.forEach((el: JRESImage) => {
                 this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
@@ -205,7 +210,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             this.setState({
                 items: this._items,
                 textItems: res.text,
-                files
+                files,
+                runUrl
             })
         })
     }
@@ -288,6 +294,12 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                     }]
             }
         })
+    }
+
+    onPaste = (ev: React.ClipboardEvent<HTMLInputElement>) => {
+        this.clearAssets();
+        this.importAssets(ev.clipboardData.getData("text"));
+        this.hideAlert();
     }
 
     onImportButtonClick = () => {
@@ -405,17 +417,17 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     render() {
-        const { items, selected, dragging, alert, textItems, files } = this.state;
+        const { items, selected, dragging, alert, textItems, files, runUrl } = this.state;
 
         const { variableNames, assetNames, other } = textItems || {};
 
-        return <div id="asset-list">
+        return <div id="asset-list" onPaste={this.onPaste}>
             {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
                 {alert.type === "import" && <div className="asset-import">
                     <div className={`asset-drop ${dragging ? "dragging" : ""}`} ref={this.handleDropRef} onDragEnter={this.onImportDragEnter} onDragLeave={this.onImportDragLeave}>
                         Drop PNG files here to import.
                     </div>
-                    <input ref={this.handleImportInputRef} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
+                    <input ref={this.handleImportInputRef} onPaste={this.onPaste} placeholder="https://makecode.com/_r8fboJQTDPtH or https://arcade.makeode.com/62736-71128-62577-28722" />
                 </div>}
                 {alert.type === "export" && <div className="asset-export">
                     <input ref={this.handleExportInputRef} placeholder="Enter a name for your project..." />
@@ -434,26 +446,29 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                         onDelete={this.onAssetDelete} />
                 }) }
             </div>
-            {variableNames?.length && <div className="asset-files">
+            {!!variableNames?.length && <div className="asset-files">
                 <div className="asset-filename">Variables</div>
                 <pre className="asset-file-content">{variableNames.join("\n")}</pre>
             </div>}
-            {assetNames?.length &&  <div className="asset-files">
+            {!!assetNames?.length &&  <div className="asset-files">
                 <div className="asset-filename">Asset Names</div>
                 <pre className="asset-file-content">{assetNames.join("\n")}</pre>
             </div>}
-            { other?.length && <div className="asset-files">
+            { !!other?.length && <div className="asset-files">
                 <div className="asset-filename">Strings</div>
                 <pre className="asset-file-content">{other.join("\n")}</pre>
             </div>
             }
-            {files?.length && <div className="asset-files">
+            {!!files?.length && <div className="asset-files">
                     {files.map((file, i) => <div key={i} className="asset-file">
                         <div className="asset-filename">{file.name}</div>
                         <pre className="asset-file-content scroll">{file.content}</pre>
                 </div>)}
             </div>
             }
+            {runUrl && <div className="sim-embed asset-files">
+                <iframe src={runUrl} sandbox="allow-popups allow-forms allow-scripts allow-same-origin"></iframe>
+            </div>}
         </div>
     }
 }
