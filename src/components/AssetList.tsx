@@ -7,6 +7,7 @@ import { setupDragAndDrop, fileReadAsBufferAsync } from '../dragAndDrop';
 import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
 import { lzmaDecompressAsync } from '../lzma';
+import { isStringApprovedAsync, markStringApprovedAsync } from '../db';
 
 interface AlertInfo extends AlertProps {
     type: "delete" | "import" | "warning" | "export";
@@ -52,7 +53,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     constructor(props: AssetListProps) {
         super(props);
-        this._items = [{ name: DEFAULT_NAME, jres: { ...DEFAULT_JRES } }];
+        this._items = [];
 
         this.state = {
             items: this._items,
@@ -75,7 +76,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     componentDidMount() {
         window.addEventListener("message", this.handleMessage);
-        this.loadJres(this._items[this.state.selected]);
+        // this.loadJres(this._items[this.state.selected]);
 
         // TODO: intermittent bug where floating layers are not registered
         // in the "update" probably to do with pxt-side handling of getJres
@@ -174,46 +175,73 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         this.setState({ items: this._items, selected: 0 });
     }
 
-    importAssets(url: string, replace?: boolean) {
-        fetchMakeCodeScriptAsync(url).then(res => {
-            const scriptId = res?.meta?.id;
-            const scriptTarget = res?.meta?.target;
-            const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
+    async importAssets(url: string, replace?: boolean) {
+        const res = await fetchMakeCodeScriptAsync(url);
+        const scriptId = res?.meta?.id;
+        const scriptTarget = res?.meta?.target;
+        const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
 
-            if (replace) this._items = [];
-            res.projectImages.forEach((el: JRESImage) => {
+        if (replace) this._items = [];
+        for (const el of res.projectImages) {
+            if (!(await isStringApprovedAsync(el.previewURI))) {
                 this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
-            } )
+            }
+        }
 
-            let files: FileInfo[] = [];
-            let ignoredFiles = ["images.g.jres", "images.g.ts", "main.blocks", "tilemap.g.jres", "tilemap.g.ts"]
+        let files: FileInfo[] = [];
+        let ignoredFiles = ["images.g.jres", "images.g.ts", "main.blocks", "tilemap.g.jres", "tilemap.g.ts"]
 
-            for (const file of Object.keys(res.files)) {
-                if (ignoredFiles.indexOf(file) === -1) {
-                    files.push({
-                        name: file,
-                        content: res.files[file]
-                    });
+        for (const file of Object.keys(res.files)) {
+            if (ignoredFiles.indexOf(file) === -1) {
+                files.push({
+                    name: file,
+                    content: res.files[file]
+                });
+            }
+        }
+
+        files = files.filter(f => !!f.content.trim())
+
+        const priorities = [".md", ".json", ".py", ".ts"];
+
+        files.sort((a, b) => {
+            const aPriority = priorities.indexOf(a.name.substr(a.name.lastIndexOf(".")));
+            const bPriority = priorities.indexOf(b.name.substr(b.name.lastIndexOf(".")));
+            return aPriority - bPriority;
+        })
+
+        const unapprovedText: BlockFields = {
+            other: [],
+            assetNames: [],
+            variableNames: []
+        }
+
+        if (res.text) {
+            for (const str of res.text.other) {
+                if (!(await isStringApprovedAsync(str))) {
+                    unapprovedText.other.push(str);
                 }
             }
 
-            files = files.filter(f => !!f.content.trim())
+            for (const str of res.text.assetNames) {
+                if (!(await isStringApprovedAsync(str))) {
+                    unapprovedText.assetNames.push(str);
+                }
+            }
 
-            const priorities = [".md", ".json", ".py", ".ts"];
+            for (const str of res.text.variableNames) {
+                if (!(await isStringApprovedAsync(str))) {
+                    unapprovedText.variableNames.push(str);
+                }
+            }
+        }
 
-            files.sort((a, b) => {
-                const aPriority = priorities.indexOf(a.name.substr(a.name.lastIndexOf(".")));
-                const bPriority = priorities.indexOf(b.name.substr(b.name.lastIndexOf(".")));
-                return aPriority - bPriority;
-            })
-
-            this.setState({
-                items: this._items,
-                textItems: res.text,
-                files,
-                runUrl
-            })
-        })
+        this.setState({
+            items: this._items,
+            textItems: unapprovedText,
+            files,
+            runUrl
+        });
     }
 
     getAssetIndex(name: string): number {
@@ -416,6 +444,34 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         }
     }
 
+    async approveAllStringsAsync(type: keyof BlockFields) {
+        const strs = this.state.textItems![type];
+
+        for (const str of strs) {
+            await markStringApprovedAsync(str)
+        }
+
+        this.setState({
+            textItems: {
+                assetNames: this.state.textItems!.assetNames.filter(s => strs.indexOf(s) === -1),
+                other: this.state.textItems!.other.filter(s => strs.indexOf(s) === -1),
+                variableNames: this.state.textItems!.variableNames.filter(s => strs.indexOf(s) === -1),
+            }
+        });
+    }
+
+    async approveAllImagesAsync() {
+        for (const item of this.state.items) {
+            if (await isStringApprovedAsync(item.jres.previewURI)) continue;
+
+            await markStringApprovedAsync(item.jres.previewURI);
+        }
+
+        this.setState({
+            items: []
+        })
+    }
+
     render() {
         const { items, selected, dragging, alert, textItems, files, runUrl } = this.state;
 
@@ -435,28 +491,38 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             </Alert>}
             <div className="asset-list-buttons">
             </div>
-            <div className="asset-images">
-                { items.map((item, i) => {
-                    return <Asset
-                        key={i}
-                        info={item}
-                        selected={i === selected}
-                        onClick={this.onAssetClick(i)}
-                        onRename={this.onAssetRename(i)}
-                        onDelete={this.onAssetDelete} />
-                }) }
-            </div>
+            { !!items.length &&
+                <>
+                    <div className="asset-images">
+                        { items.map((item, i) => {
+                            return <Asset
+                                key={i}
+                                info={item}
+                                selected={i === selected}
+                                onClick={this.onAssetClick(i)}
+                                onRename={this.onAssetRename(i)}
+                                onDelete={this.onAssetDelete} />
+                        }) }
+                    </div>
+                    <div>
+                        <button onClick={() => this.approveAllImagesAsync()}>Approve All Images</button>
+                    </div>
+                </>
+            }
             {!!variableNames?.length && <div className="asset-files">
                 <div className="asset-filename">Variables</div>
                 <pre className="asset-file-content">{variableNames.join("\n")}</pre>
+                <button onClick={() => this.approveAllStringsAsync("variableNames")}>Approve All Variables</button>
             </div>}
             {!!assetNames?.length &&  <div className="asset-files">
                 <div className="asset-filename">Asset Names</div>
                 <pre className="asset-file-content">{assetNames.join("\n")}</pre>
+                <button onClick={() => this.approveAllStringsAsync("assetNames")}>Approve All Names</button>
             </div>}
             { !!other?.length && <div className="asset-files">
                 <div className="asset-filename">Strings</div>
                 <pre className="asset-file-content">{other.join("\n")}</pre>
+            <   button onClick={() => this.approveAllStringsAsync("other")}>Approve All Strings</button>
             </div>
             }
             {!!files?.length && <div className="asset-files">
