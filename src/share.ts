@@ -80,6 +80,7 @@ export interface ScriptMeta {
         blocksWidth: number;
     };
     thumb: boolean;
+    isdeleted?: boolean;
 }
 
 export interface ScriptInfo {

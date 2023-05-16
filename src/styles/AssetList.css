@@ -76,6 +76,18 @@
     padding: 0.5rem;
 }
 
+.banned-script {
+    display: flex;
+    justify-content: center;
+}
+.banned-script h1 {
+    background: #d23b3b;
+    border: solid 1px #821313;
+    border-radius: 2rem;
+    padding: 2rem;
+    display: inline-block;
+}
+
 .sim-embed {
     margin: 0 auto;
 }
