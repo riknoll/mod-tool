@@ -25,6 +25,7 @@ interface AssetListProps {
 interface AssetListState {
     items: AssetInfo[];
     runUrl?: string;
+    isDeleted?: boolean;
     selected: number;
     saving?: number;
     dragging?: boolean;
@@ -181,6 +182,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         const scriptTarget = res?.meta?.target;
         const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
 
+        const cvsHatesThisScript = res.meta.isdeleted;
+
         if (replace) this._items = [];
         for (const el of res.projectImages) {
             if (!(await isStringApprovedAsync(el.previewURI))) {
@@ -240,7 +243,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             items: this._items,
             textItems: unapprovedText,
             files,
-            runUrl
+            runUrl,
+            isDeleted: cvsHatesThisScript,
         });
     }
 
@@ -473,7 +477,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     render() {
-        const { items, selected, dragging, alert, textItems, files, runUrl } = this.state;
+        const { items, selected, dragging, alert, textItems, files, runUrl, isDeleted } = this.state;
 
         const { variableNames, assetNames, other } = textItems || {};
 
@@ -532,6 +536,11 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 </div>)}
             </div>
             }
+            {isDeleted && <div className="banned-script">
+                <h1>
+                    This script has been deleted by content moderation, and will not show up to users!
+                </h1>
+            </div>}
             {runUrl && <div className="sim-embed asset-files">
                 <iframe src={runUrl} sandbox="allow-popups allow-forms allow-scripts allow-same-origin"></iframe>
             </div>}
