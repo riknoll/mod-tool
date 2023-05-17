@@ -182,7 +182,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         const scriptTarget = res?.meta?.target;
         const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
 
-        const cvsHatesThisScript = res.meta.isdeleted;
+        const cvsHatesThisScript = res?.meta?.isdeleted;
 
         if (replace) this._items = [];
         for (const el of res.projectImages) {
