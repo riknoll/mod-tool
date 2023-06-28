@@ -91,8 +91,16 @@ export interface ScriptInfo {
     images: JRESImage[];
 }
 
+export interface ImportedScriptInfo {
+    meta?: ScriptMeta;
+    files: {[index: string]: string};
+    text: BlockFields;
+    customPalette?: string[];
+    projectImages: JRESImage[];
+}
 
-export async function fetchMakeCodeScriptAsync(url: string) {
+
+export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScriptInfo> {
     // https://makecode.com/_UAVXEwU7RAew
     // https://arcade.makecode.com/62736-71028-62577-28752
     let scriptID = url.trim();
@@ -129,6 +137,36 @@ export async function fetchMakeCodeScriptAsync(url: string) {
 
     return {
         meta,
+        files: filesystem,
+        projectImages: projectImages,
+        text: grabTextFromProject(filesystem),
+        customPalette: paletteIsCustom ? palette : undefined
+    };
+}
+
+export async function parseProject(filesystem: {[index: string]: string}): Promise<ImportedScriptInfo> {
+    const config = filesystem["pxt.json"];
+
+    let palette = arcadePalette;
+    let paletteIsCustom = false;
+
+    if (config) {
+        try {
+            let parsedConfig = JSON.parse(config);
+
+            if (parsedConfig?.palette && Array.isArray(parsedConfig.palette)) {
+                palette = parsedConfig.palette.slice()
+                paletteIsCustom = true;
+            }
+        }
+        catch (e) {
+            // ignore
+        }
+    }
+
+    const projectImages = grabImagesFromProject(filesystem);
+
+    return {
         files: filesystem,
         projectImages: projectImages,
         text: grabTextFromProject(filesystem),

@@ -2,8 +2,8 @@ import React from 'react';
 import { Alert, AlertProps } from './Alert';
 import { Asset, AssetInfo } from './Asset';
 import { JRESImage, getJRESImageFromDataString, getJRESImageFromUint8Array } from '../images'
-import { arcadePalette, BlockFields, fetchMakeCodeScriptAsync, grabImagesFromProject } from '../share';
-import { setupDragAndDrop, fileReadAsBufferAsync } from '../dragAndDrop';
+import { arcadePalette, BlockFields, fetchMakeCodeScriptAsync, grabImagesFromProject, ImportedScriptInfo, parseProject } from '../share';
+import { setupDragAndDrop, fileReadAsBufferAsync, decodePNG } from '../dragAndDrop';
 import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
 import { lzmaDecompressAsync } from '../lzma';
@@ -178,6 +178,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
 
     async importAssets(url: string, replace?: boolean) {
         const res = await fetchMakeCodeScriptAsync(url);
+        await this.importAssetsCore(res, replace);
+    }
+
+    async importAssetsCore(res: ImportedScriptInfo, replace?: boolean) {
         const scriptId = res?.meta?.id;
         const scriptTarget = res?.meta?.target;
         const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
@@ -410,41 +414,33 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 for (const f of files) {
                     const idx = f.name.lastIndexOf(".");
                     const ext = f.name.substr(idx);
-                    const name = f.name.slice(0, idx);
                     if (ext.toLowerCase() === ".png") {
-                        const buf = await fileReadAsBufferAsync(f);
-                        if (buf) {
-                            const jres = await getJRESImageFromUint8Array(buf, arcadePalette);
-                            if (jres) {
-                                this.addAsset(name, jres);
-                                this.hideAlert();
-                            }
-                        }
+                        const buf = await decodePNG(f);
+                        await this.importBuffer(buf);
                     }
                     else if (ext.toLowerCase() === ".mkcd") {
                         const buf = await fileReadAsBufferAsync(f);
-                        if (buf) {
-                            const text = await lzmaDecompressAsync(buf);
-                            try {
-                                const project = JSON.parse(text);
-                                const files = JSON.parse(project.source);
-
-                                const projectImages = grabImagesFromProject(files);
-
-                                projectImages.forEach((el: JRESImage) => {
-                                    this._items.push({ name: el.qualifiedName || this.getValidAssetName(DEFAULT_NAME), jres: el })
-                                } )
-                                this.setState({items: this._items})
-                                this.hideAlert();
-
-                            }
-                            catch (e) {
-
-                            }
-                        }
+                        await this.importBuffer(buf);
                     }
                 }
             });
+        }
+    }
+
+    async importBuffer(buf: Uint8Array | undefined | null) {
+        if (buf) {
+            const text = await lzmaDecompressAsync(buf);
+            try {
+                const project = JSON.parse(text);
+                const files = JSON.parse(project.source);
+                const parsed = await parseProject(files);
+
+                await this.importAssetsCore(parsed, true);
+                this.hideAlert();
+            }
+            catch (e) {
+
+            }
         }
     }
 
