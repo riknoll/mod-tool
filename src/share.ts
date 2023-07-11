@@ -229,21 +229,31 @@ export function grabTextFromProject(filesystem: {[index: string]: string}): Bloc
         }
     }
 
-    return {
-        other: dedupe(strings),
-        assetNames: dedupe(assetNames),
-        variableNames: dedupe(variableNames)
-    }
-}
-
-function dedupe(strings: string[]) {
-    const out: string[] = []
-    strings.forEach(s => {
-        if (out.indexOf(s) === -1) {
-            out.push(s);
+    for (const file of Object.keys(filesystem)) {
+        if (file.endsWith(".ts") && !file.endsWith(".gen.ts")) {
+            strings.push(...grabCommentsAndStringsFromTypeScript(filesystem[file]));
         }
-    })
-    return out;
+    }
+
+    let seenStrings: {[index: string]: boolean} = {};
+
+    const dedupe = (strings: string[]) => {
+        const out: string[] = []
+        strings.forEach(s => {
+            if (seenStrings[s]) {
+                return;
+            }
+            seenStrings[s] = true;
+            out.push(s);
+        })
+        return out;
+    }
+
+    return {
+        assetNames: dedupe(assetNames),
+        variableNames: dedupe(variableNames),
+        other: dedupe(strings),
+    }
 }
 
 
@@ -349,4 +359,96 @@ function httpGetJSONAsync(url: string): Promise<any> {
         request.open("GET", url);
         request.send();
     });
+}
+
+function grabCommentsAndStringsFromTypeScript(text: string) {
+    const strings: string[] = [];
+
+    let inMultilineComment = false;
+    let inSingleLineComment = false;
+    let inTemplateString = false;
+    let curlyLevel = 0;
+    let inQuotes = undefined;
+    let currentTokenStart = -1;
+    let inIgnoredLiteral = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const char = text.charAt(i);
+
+        if (inMultilineComment) {
+            if (char === "*" && text.charAt(i + 1) === "/" && i > currentTokenStart) {
+                inMultilineComment = false;
+                strings.push(text.substring(currentTokenStart, i).trim());
+            }
+        }
+        else if (inSingleLineComment) {
+            if (/\n/.test(char)) {
+                inSingleLineComment = false;
+                strings.push(text.substring(currentTokenStart, i).trim());
+            }
+        }
+        else if (inQuotes) {
+            if (char === inQuotes) {
+                inQuotes = undefined;
+                strings.push(text.substring(currentTokenStart, i).trim());
+            }
+        }
+        else if (inTemplateString) {
+            if (curlyLevel) {
+                if (char === "}") {
+                    curlyLevel--;
+                    if (curlyLevel === 0) {
+                        strings.push(...grabCommentsAndStringsFromTypeScript(text.substring(currentTokenStart, i)));
+                        currentTokenStart = i + 1;
+                    }
+                }
+                else if (char === "{") {
+                    curlyLevel++;
+                }
+            }
+            else if (char === "$" && text.charAt(i + 1) === "{") {
+                curlyLevel = 1;
+                strings.push(text.substring(currentTokenStart, i).trim());
+                currentTokenStart = i + 1;
+                i++;
+            }
+            else if (char === "`") {
+                inTemplateString = false;
+                strings.push(text.substring(currentTokenStart, i).trim());
+            }
+        }
+        else if (inIgnoredLiteral) {
+            if (char === "`") {
+                inIgnoredLiteral = false;
+            }
+        }
+        else {
+            if (char === "/" && text.charAt(i + 1) === "*") {
+                inMultilineComment = true;
+                currentTokenStart = i + 2;
+            }
+            else if (char === "/" && text.charAt(i + 1) === "/") {
+                inSingleLineComment = true;
+                currentTokenStart = i + 2;
+            }
+            else if (char === "'" || char === '"') {
+                inQuotes = char;
+                currentTokenStart = i + 1;
+            }
+            else if (char === "`") {
+                inTemplateString = true;
+                currentTokenStart = i + 1;
+            }
+            else if (char === "i" && text.charAt(i + 1) === "m" && text.charAt(i + 2) === "g" && text.charAt(i + 3) === "`") {
+                inIgnoredLiteral = true;
+                i += 3;
+            }
+            else if (char === "h" && text.charAt(i + 1) === "e" && text.charAt(i + 2) === "x" && text.charAt(i + 3) === "`") {
+                inIgnoredLiteral = true;
+                i += 3;
+            }
+        }
+    }
+
+    return strings.filter(s => !!s);
 }

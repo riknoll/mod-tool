@@ -38,11 +38,11 @@
 .asset-file-content {
     background-color: #dedede;
     margin: 0 1rem 1rem 1rem;
+    overflow: scroll;
 }
 
 .asset-file-content.scroll {
     max-height: 500px;
-    overflow: scroll;
 }
 
 .asset-button {
