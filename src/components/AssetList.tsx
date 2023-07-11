@@ -332,7 +332,14 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         })
     }
 
+    protected lastEvent?: React.ClipboardEvent<HTMLInputElement>;
     onPaste = (ev: React.ClipboardEvent<HTMLInputElement>) => {
+        const data = ev.clipboardData.getData("text");
+        const lastData = this.lastEvent?.clipboardData.getData("text");
+        if (data === lastData) return;
+
+        this.lastEvent = ev;
+
         this.clearAssets();
         this.importAssets(ev.clipboardData.getData("text"));
         this.hideAlert();
