@@ -339,7 +339,7 @@ function grabImagesFromTypeScript(fileText: string, filename: string, palette = 
 }
 
 
-function httpGetJSONAsync(url: string): Promise<any> {
+export function httpGetJSONAsync(url: string): Promise<any> {
     return new Promise((resolve, reject) => {
         const request = new XMLHttpRequest();
 

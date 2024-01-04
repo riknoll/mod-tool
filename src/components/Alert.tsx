@@ -10,6 +10,7 @@ interface AlertOption {
 export interface AlertProps {
     title: string;
     text: string;
+    className?: string;
     icon?: string;
     options?: AlertOption[];
     visible?: boolean;
@@ -25,9 +26,9 @@ export class Alert extends React.Component<AlertProps, {}> {
     render() {
         if (!this.props.visible) return <div />;
 
-        const { title, text, icon, options } = this.props;
+        const { title, text, icon, options, className } = this.props;
         return <div className="alert-container">
-            <div className="alert" onClick={this.onAlertClick}>
+            <div className={"alert " + className} onClick={this.onAlertClick}>
                 <div className="alert-title">
                     {icon && <i className={`alert-icon icon ${icon}`}></i>}
                     <span>{title}</span>

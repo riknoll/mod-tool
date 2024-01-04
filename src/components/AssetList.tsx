@@ -8,6 +8,7 @@ import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
 import { lzmaDecompressAsync } from '../lzma';
 import { isStringApprovedAsync, markStringApprovedAsync } from '../db';
+import { PNGDialog } from './PngDialog';
 
 interface AlertInfo extends AlertProps {
     type: "delete" | "import" | "warning" | "export";
@@ -32,6 +33,7 @@ interface AssetListState {
     alert?: AlertInfo;
     textItems?: BlockFields;
     files?: FileInfo[];
+    pngDialogOpen?: boolean;
 }
 
 const DEFAULT_NAME = "mySprite";
@@ -82,6 +84,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         // TODO: intermittent bug where floating layers are not registered
         // in the "update" probably to do with pxt-side handling of getJres
         setTimeout(this.autosaveJres, SAVE_INTERVAL);
+
+        if (/saveaspng=1/i.test(window.location.href)) {
+            this.setState({ pngDialogOpen: true })
+        }
     }
 
     componentWillUnmount() {
@@ -434,6 +440,10 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         }
     }
 
+    onPNGDialogClick = () => {
+        this.setState({pngDialogOpen: true});
+    }
+
     async importBuffer(buf: Uint8Array | undefined | null) {
         if (buf) {
             const text = await lzmaDecompressAsync(buf);
@@ -480,12 +490,12 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     render() {
-        const { items, selected, dragging, alert, textItems, files, runUrl, isDeleted } = this.state;
+        const { items, selected, dragging, alert, textItems, files, runUrl, isDeleted, pngDialogOpen } = this.state;
 
         const { variableNames, assetNames, other } = textItems || {};
 
         return <div id="asset-list" onPaste={this.onPaste}>
-            {alert && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
+            {alert && !pngDialogOpen && <Alert icon={alert.icon} title={alert.title} text={alert.text} options={alert.options} visible={true} onClose={this.hideAlert}>
                 {alert.type === "import" && <div className="asset-import">
                     <div className={`asset-drop ${dragging ? "dragging" : ""}`} ref={this.handleDropRef} onDragEnter={this.onImportDragEnter} onDragLeave={this.onImportDragLeave}>
                         Drop PNG files here to import.
@@ -496,6 +506,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                     <input ref={this.handleExportInputRef} placeholder="Enter a name for your project..." />
                 </div>}
             </Alert>}
+            {pngDialogOpen && <PNGDialog onClose={() => this.setState({pngDialogOpen: false})}/> }
             <div className="asset-list-buttons">
             </div>
             { !!items.length &&

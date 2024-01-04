@@ -20,6 +20,10 @@
     min-width: 20rem;
 }
 
+.alert.png {
+    border: 1px solid white;
+}
+
 .alert > div {
     padding: .75rem .75rem 0;
 }
