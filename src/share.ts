@@ -15,7 +15,9 @@ export interface JRes {
     tileset?: string[];
 }
 
-export const arcadePalette = [
+let customPalette: string[];
+
+const arcadePalette = [
     "#000000",
     "#ffffff",
     "#ff2121",
@@ -33,6 +35,10 @@ export const arcadePalette = [
     "#91463d",
     "#000000"
 ];
+
+export function getPalette() {
+    return customPalette || arcadePalette;
+}
 
 /*
 {
@@ -133,7 +139,7 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
         }
     }
 
-    const projectImages = grabImagesFromProject(filesystem);
+    const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
         meta,
@@ -164,7 +170,7 @@ export async function parseProject(filesystem: {[index: string]: string}): Promi
         }
     }
 
-    const projectImages = grabImagesFromProject(filesystem);
+    const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
         files: filesystem,
@@ -257,7 +263,7 @@ export function grabTextFromProject(filesystem: {[index: string]: string}): Bloc
 }
 
 
-export function grabImagesFromProject(filesystem: {[index: string]: string}, palette = arcadePalette) {
+export function grabImagesFromProject(filesystem: {[index: string]: string}, palette = getPalette()) {
     // Don't bother checking python and blocks files, they should all get converted to a matching ts
     // file that will also contain all image literals
     const typescriptFiles = Object.keys(filesystem).filter(filename =>
@@ -290,7 +296,7 @@ export function grabImagesFromProject(filesystem: {[index: string]: string}, pal
     return Object.keys(seenImages).map(data => seenImages[data]);
 }
 
-function grabImagesFromJRES(jresText: string, filename: string, palette = arcadePalette): JRESImage[] {
+function grabImagesFromJRES(jresText: string, filename: string, palette = getPalette()): JRESImage[] {
     let jres: {[index: string]: JRes | string};
 
     try {
@@ -325,7 +331,7 @@ function grabImagesFromJRES(jresText: string, filename: string, palette = arcade
     return result
 }
 
-function grabImagesFromTypeScript(fileText: string, filename: string, palette = arcadePalette) {
+function grabImagesFromTypeScript(fileText: string, filename: string, palette = getPalette()) {
     const literalRegex = /img\s*`[\s\da-f.#tngrpoyw]*`/img;
 
     const res: JRESImage[] = [];
