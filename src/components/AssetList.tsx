@@ -1,14 +1,16 @@
 import React from 'react';
 import { Alert, AlertProps } from './Alert';
 import { Asset, AssetInfo } from './Asset';
-import { JRESImage, getJRESImageFromDataString, getJRESImageFromUint8Array } from '../images'
-import { arcadePalette, BlockFields, fetchMakeCodeScriptAsync, grabImagesFromProject, ImportedScriptInfo, parseProject } from '../share';
+import { JRESImage, getJRESImageFromDataString } from '../images'
+import { BlockFields, fetchMakeCodeScriptAsync, getPalette, ImportedScriptInfo, parseProject } from '../share';
 import { setupDragAndDrop, fileReadAsBufferAsync, decodePNG } from '../dragAndDrop';
 import '../styles/AssetList.css';
 import { downloadProjectAsync, downloadTypeScriptAsync } from '../export';
 import { lzmaDecompressAsync } from '../lzma';
 import { isStringApprovedAsync, markStringApprovedAsync } from '../db';
 import { PNGDialog } from './PngDialog';
+import { TextBox } from './TextBox';
+import { TextList } from './TextList';
 
 interface AlertInfo extends AlertProps {
     type: "delete" | "import" | "warning" | "export";
@@ -114,7 +116,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 this.loadJres(this._items[this.state.selected]);
                 break;
             case "update":
-                const jresImage = getJRESImageFromDataString(data.message, arcadePalette);
+                const jresImage = getJRESImageFromDataString(data.message, getPalette());
                 if (this.state.saving !== undefined) {
                     const saving = this.state.saving;
                     this._items[this.state.selected].jres = jresImage;
@@ -539,8 +541,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             </div>}
             { !!other?.length && <div className="asset-files">
                 <div className="asset-filename">Strings</div>
-                <pre className="asset-file-content">{other.join("\n")}</pre>
-            <   button onClick={() => this.approveAllStringsAsync("other")}>Approve All Strings</button>
+                <TextList text={other} />
+            <button onClick={() => this.approveAllStringsAsync("other")}>Approve All Strings</button>
             </div>
             }
             {!!files?.length && <div className="asset-files">

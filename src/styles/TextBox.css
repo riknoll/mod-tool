@@ -1,0 +1,13 @@
+.text-box {
+    cursor: pointer;
+}
+
+.text-box.selected {
+    background-color: #fa96c1;
+    outline: none;
+}
+
+.text-box:hover:not(.selected) {
+    background-color: #fdd3e5;
+    outline: none;
+}
