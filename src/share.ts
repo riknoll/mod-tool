@@ -120,25 +120,7 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
     // A mapping of filenames to filecontents
     const filesystem: {[index: string]: string} = await httpGetJSONAsync(backendEndpoint + "/" + scriptID + "/text");
 
-    const config = filesystem["pxt.json"];
-
-    let palette = arcadePalette;
-    let paletteIsCustom = false;
-
-    if (config) {
-        try {
-            let parsedConfig = JSON.parse(config);
-
-            if (parsedConfig?.palette && Array.isArray(parsedConfig.palette)) {
-                palette = parsedConfig.palette.slice()
-                paletteIsCustom = true;
-            }
-        }
-        catch (e) {
-            // ignore
-        }
-    }
-
+    const { palette, paletteIsCustom } = resolvePalette(filesystem);
     const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
@@ -150,18 +132,16 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
     };
 }
 
-export async function parseProject(filesystem: {[index: string]: string}): Promise<ImportedScriptInfo> {
+function resolvePalette(filesystem: {[index: string]: string}): { palette: string[], paletteIsCustom: boolean } {
     const config = filesystem["pxt.json"];
-
     let palette = arcadePalette;
     let paletteIsCustom = false;
 
     if (config) {
         try {
-            let parsedConfig = JSON.parse(config);
-
+            const parsedConfig = JSON.parse(config);
             if (parsedConfig?.palette && Array.isArray(parsedConfig.palette)) {
-                palette = parsedConfig.palette.slice()
+                palette = parsedConfig.palette.slice();
                 paletteIsCustom = true;
             }
         }
@@ -170,6 +150,11 @@ export async function parseProject(filesystem: {[index: string]: string}): Promi
         }
     }
 
+    return { palette, paletteIsCustom };
+}
+
+export async function parseProject(filesystem: {[index: string]: string}): Promise<ImportedScriptInfo> {
+    const { palette, paletteIsCustom } = resolvePalette(filesystem);
     const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
