@@ -103,6 +103,8 @@ export interface ImportedScriptInfo {
     text: BlockFields;
     customPalette?: string[];
     projectImages: JRESImage[];
+    name?: string;
+    description?: string;
 }
 
 
@@ -120,7 +122,7 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
     // A mapping of filenames to filecontents
     const filesystem: {[index: string]: string} = await httpGetJSONAsync(backendEndpoint + "/" + scriptID + "/text");
 
-    const { palette, paletteIsCustom } = resolvePalette(filesystem);
+    const { palette, paletteIsCustom, name, description } = resolvePalette(filesystem);
     const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
@@ -128,14 +130,18 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
         files: filesystem,
         projectImages: projectImages,
         text: grabTextFromProject(filesystem),
-        customPalette: paletteIsCustom ? palette : undefined
+        customPalette: paletteIsCustom ? palette : undefined,
+        name,
+        description
     };
 }
 
-function resolvePalette(filesystem: {[index: string]: string}): { palette: string[], paletteIsCustom: boolean } {
+function resolvePalette(filesystem: {[index: string]: string}): { palette: string[], paletteIsCustom: boolean, name?: string, description?: string } {
     const config = filesystem["pxt.json"];
     let palette = arcadePalette;
     let paletteIsCustom = false;
+    let name: string | undefined;
+    let description: string | undefined;
 
     if (config) {
         try {
@@ -144,24 +150,34 @@ function resolvePalette(filesystem: {[index: string]: string}): { palette: strin
                 palette = parsedConfig.palette.slice();
                 paletteIsCustom = true;
             }
+
+            if (typeof parsedConfig?.name === "string" && parsedConfig.name.trim()) {
+                name = parsedConfig.name.trim();
+            }
+
+            if (typeof parsedConfig?.description === "string" && parsedConfig.description.trim()) {
+                description = parsedConfig.description.trim();
+            }
         }
         catch (e) {
             // ignore
         }
     }
 
-    return { palette, paletteIsCustom };
+    return { palette, paletteIsCustom, name, description };
 }
 
 export async function parseProject(filesystem: {[index: string]: string}): Promise<ImportedScriptInfo> {
-    const { palette, paletteIsCustom } = resolvePalette(filesystem);
+    const { palette, paletteIsCustom, name, description } = resolvePalette(filesystem);
     const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
         files: filesystem,
         projectImages: projectImages,
         text: grabTextFromProject(filesystem),
-        customPalette: paletteIsCustom ? palette : undefined
+        customPalette: paletteIsCustom ? palette : undefined,
+        name,
+        description
     };
 }
 
