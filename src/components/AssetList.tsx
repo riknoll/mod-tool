@@ -36,6 +36,8 @@ interface AssetListState {
     textItems?: BlockFields;
     files?: FileInfo[];
     pngDialogOpen?: boolean;
+    projectName?: string;
+    projectDescription?: string;
 }
 
 const DEFAULT_NAME = "mySprite";
@@ -195,6 +197,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
         const runUrl = scriptId && scriptTarget && `https://${res?.meta?.target}.makecode.com/---run?id=${res?.meta?.id}&noFooter=1&single=1&fullScreen=1`;
 
         const cvsHatesThisScript = res?.meta?.isdeleted;
+        const projectName = res?.name;
+        const projectDescription = res?.description;
 
         if (replace) this._items = [];
         for (const el of res.projectImages) {
@@ -257,6 +261,8 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
             files,
             runUrl,
             isDeleted: cvsHatesThisScript,
+            projectName,
+            projectDescription,
         });
     }
 
@@ -492,7 +498,7 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
     }
 
     render() {
-        const { items, selected, dragging, alert, textItems, files, runUrl, isDeleted, pngDialogOpen } = this.state;
+        const { items, selected, dragging, alert, textItems, files, runUrl, isDeleted, pngDialogOpen, projectName, projectDescription } = this.state;
 
         const { variableNames, assetNames, other } = textItems || {};
 
@@ -543,6 +549,17 @@ class AssetList extends React.Component<AssetListProps, AssetListState> {
                 <div className="asset-filename">Strings</div>
                 <TextList text={other} />
             <button onClick={() => this.approveAllStringsAsync("other")}>Approve All Strings</button>
+            </div>
+            }
+            {!!(projectName || projectDescription) && <div className="asset-files">
+                    {!!projectName && <div className="asset-file">
+                        <div className="asset-filename">Title</div>
+                        <pre className="asset-file-content">{projectName}</pre>
+                    </div>}
+                    {!!projectDescription && <div className="asset-file">
+                        <div className="asset-filename">Description</div>
+                        <pre className="asset-file-content">{projectDescription}</pre>
+                    </div>}
             </div>
             }
             {!!files?.length && <div className="asset-files">

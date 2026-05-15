@@ -103,6 +103,8 @@ export interface ImportedScriptInfo {
     text: BlockFields;
     customPalette?: string[];
     projectImages: JRESImage[];
+    name?: string;
+    description?: string;
 }
 
 
@@ -120,25 +122,7 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
     // A mapping of filenames to filecontents
     const filesystem: {[index: string]: string} = await httpGetJSONAsync(backendEndpoint + "/" + scriptID + "/text");
 
-    const config = filesystem["pxt.json"];
-
-    let palette = arcadePalette;
-    let paletteIsCustom = false;
-
-    if (config) {
-        try {
-            let parsedConfig = JSON.parse(config);
-
-            if (parsedConfig?.palette && Array.isArray(parsedConfig.palette)) {
-                palette = parsedConfig.palette.slice()
-                paletteIsCustom = true;
-            }
-        }
-        catch (e) {
-            // ignore
-        }
-    }
-
+    const { palette, paletteIsCustom, name, description } = resolvePalette(filesystem);
     const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
@@ -146,23 +130,33 @@ export async function fetchMakeCodeScriptAsync(url: string): Promise<ImportedScr
         files: filesystem,
         projectImages: projectImages,
         text: grabTextFromProject(filesystem),
-        customPalette: paletteIsCustom ? palette : undefined
+        customPalette: paletteIsCustom ? palette : undefined,
+        name,
+        description
     };
 }
 
-export async function parseProject(filesystem: {[index: string]: string}): Promise<ImportedScriptInfo> {
+function resolvePalette(filesystem: {[index: string]: string}): { palette: string[], paletteIsCustom: boolean, name?: string, description?: string } {
     const config = filesystem["pxt.json"];
-
     let palette = arcadePalette;
     let paletteIsCustom = false;
+    let name: string | undefined;
+    let description: string | undefined;
 
     if (config) {
         try {
-            let parsedConfig = JSON.parse(config);
-
+            const parsedConfig = JSON.parse(config);
             if (parsedConfig?.palette && Array.isArray(parsedConfig.palette)) {
-                palette = parsedConfig.palette.slice()
+                palette = parsedConfig.palette.slice();
                 paletteIsCustom = true;
+            }
+
+            if (typeof parsedConfig?.name === "string" && parsedConfig.name.trim()) {
+                name = parsedConfig.name.trim();
+            }
+
+            if (typeof parsedConfig?.description === "string" && parsedConfig.description.trim()) {
+                description = parsedConfig.description.trim();
             }
         }
         catch (e) {
@@ -170,13 +164,20 @@ export async function parseProject(filesystem: {[index: string]: string}): Promi
         }
     }
 
+    return { palette, paletteIsCustom, name, description };
+}
+
+export async function parseProject(filesystem: {[index: string]: string}): Promise<ImportedScriptInfo> {
+    const { palette, paletteIsCustom, name, description } = resolvePalette(filesystem);
     const projectImages = grabImagesFromProject(filesystem, palette);
 
     return {
         files: filesystem,
         projectImages: projectImages,
         text: grabTextFromProject(filesystem),
-        customPalette: paletteIsCustom ? palette : undefined
+        customPalette: paletteIsCustom ? palette : undefined,
+        name,
+        description
     };
 }
 
